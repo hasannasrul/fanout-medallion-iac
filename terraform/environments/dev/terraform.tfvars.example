@@ -1,0 +1,21 @@
+# Example terraform.tfvars for dev environment (Free Tier Compatible)
+# Copy this to terraform.tfvars and update with your values
+
+environment                = "dev"
+aws_region                 = "us-east-1"
+project_name               = "fanout-medallion"
+
+# RDS Configuration (Free Tier: db.t3.micro, PostgreSQL 15, 20GB storage)
+rds_engine                 = "postgres"      # or "mysql"
+rds_instance_class         = "db.t3.micro"   # Free tier eligible
+rds_database_name          = "analytics"
+rds_username               = "admin"
+rds_password               = "YourSecurePassword123!"  # CHANGE THIS!
+rds_allocated_storage      = 20              # Free tier: 20GB
+
+# S3 & SQS Configuration
+s3_versioning_enabled      = true
+enable_logging             = true
+sqs_message_retention_seconds = 345600       # 4 days (free tier friendly)
+sqs_visibility_timeout_seconds = 300         # 5 minutes
+
