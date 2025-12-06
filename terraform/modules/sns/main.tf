@@ -1,16 +1,16 @@
 # Bronze SNS Topic
-resource "aws_sns_topic" "bronze" {
-  name              = "${var.project_name}-bronze-topic-${var.environment}"
+resource "aws_sns_topic" "this" {
+  name              = "${var.project_name}-${var.layer}-topic-${var.environment}"
   kms_master_key_id = "alias/aws/sns"
 
   tags = {
-    Layer = "Bronze"
-    Name  = "${var.project_name}-bronze-topic"
+    Layer = var.layer
+    Name  = "${var.project_name}-${var.layer}-topic-${var.environment}"
   }
 }
 
-resource "aws_sns_topic_policy" "bronze" {
-  arn    = aws_sns_topic.bronze.arn
+resource "aws_sns_topic_policy" "this" {
+  arn    = aws_sns_topic.this.arn
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -20,63 +20,13 @@ resource "aws_sns_topic_policy" "bronze" {
           Service = "s3.amazonaws.com"
         }
         Action   = "SNS:Publish"
-        Resource = aws_sns_topic.bronze.arn
+        Resource = aws_sns_topic.this.arn,
+      "Condition": {
+        "StringEquals": {
+          "AWS:SourceAccount": var.src_account,
+          "aws:SourceArn": var.src_bucket_arn
+        }
       }
-    ]
-  })
-}
-
-# Silver SNS Topic
-resource "aws_sns_topic" "silver" {
-  name              = "${var.project_name}-silver-topic-${var.environment}"
-  kms_master_key_id = "alias/aws/sns"
-
-  tags = {
-    Layer = "Silver"
-    Name  = "${var.project_name}-silver-topic"
-  }
-}
-
-resource "aws_sns_topic_policy" "silver" {
-  arn    = aws_sns_topic.silver.arn
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "s3.amazonaws.com"
-        }
-        Action   = "SNS:Publish"
-        Resource = aws_sns_topic.silver.arn
-      }
-    ]
-  })
-}
-
-# Gold SNS Topic
-resource "aws_sns_topic" "gold" {
-  name              = "${var.project_name}-gold-topic-${var.environment}"
-  kms_master_key_id = "alias/aws/sns"
-
-  tags = {
-    Layer = "Gold"
-    Name  = "${var.project_name}-gold-topic"
-  }
-}
-
-resource "aws_sns_topic_policy" "gold" {
-  arn    = aws_sns_topic.gold.arn
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "s3.amazonaws.com"
-        }
-        Action   = "SNS:Publish"
-        Resource = aws_sns_topic.gold.arn
       }
     ]
   })

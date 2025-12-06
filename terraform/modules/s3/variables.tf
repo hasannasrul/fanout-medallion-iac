@@ -19,3 +19,8 @@ variable "enable_logging" {
   type        = bool
   default     = true
 }
+
+variable "layer" {
+  description = "Layer of the S3 bucket (e.g., bronze, silver, gold)"
+  type        = string
+}

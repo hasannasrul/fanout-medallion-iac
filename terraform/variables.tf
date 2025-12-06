@@ -37,45 +37,10 @@ variable "enable_public_read" {
   default     = false
 }
 
-variable "rds_engine" {
-  description = "RDS database engine"
+variable "src_account" {
+  description = "Source AWS account ID for SNS topic policy"
   type        = string
-  default     = "postgres"
-  validation {
-    condition     = contains(["postgres", "mysql"], var.rds_engine)
-    error_message = "RDS engine must be postgres or mysql."
-  }
-}
 
-variable "rds_instance_class" {
-  description = "RDS instance class (free tier: db.t3.micro or db.t2.micro)"
-  type        = string
-  default     = "db.t3.micro"
-}
-
-variable "rds_database_name" {
-  description = "RDS database name"
-  type        = string
-  default     = "analytics"
-}
-
-variable "rds_username" {
-  description = "RDS master username"
-  type        = string
-  default     = "admin"
-  sensitive   = true
-}
-
-variable "rds_password" {
-  description = "RDS master password"
-  type        = string
-  sensitive   = true
-}
-
-variable "rds_allocated_storage" {
-  description = "RDS allocated storage in GB (free tier: 20GB)"
-  type        = number
-  default     = 20
 }
 
 variable "sqs_message_retention_seconds" {
@@ -89,3 +54,4 @@ variable "sqs_visibility_timeout_seconds" {
   type        = number
   default     = 300
 }
+

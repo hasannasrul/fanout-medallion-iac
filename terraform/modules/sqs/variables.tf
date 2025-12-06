@@ -19,3 +19,8 @@ variable "visibility_timeout_seconds" {
   type        = number
   default     = 300
 }
+
+variable "layer" {
+  description = "Layer name (e.g., bronze, silver, gold)"
+  type        = string
+}

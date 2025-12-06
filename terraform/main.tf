@@ -1,191 +1,173 @@
-
-module "s3_buckets" {
+# ==================== S3 BUCKETS ====================
+module "s3_buckets_bronze" {
   source = "./modules/s3"
 
-  environment = var.environment
+  layer        = "bronze"
+  environment  = var.environment
   project_name = var.project_name
-  
+
   versioning_enabled = var.s3_versioning_enabled
   enable_logging     = var.enable_logging
 }
 
-module "sns_topics" {
-  source = "./modules/sns"
+module "s3_buckets_silver" {
+  source = "./modules/s3"
 
+  layer        = "silver"
   environment  = var.environment
   project_name = var.project_name
+
+  versioning_enabled = var.s3_versioning_enabled
+  enable_logging     = var.enable_logging
 }
 
-module "sqs_queues" {
-  source = "./modules/sqs"
+module "s3_buckets_gold" {
+  source = "./modules/s3"
 
-  environment = var.environment
+  layer        = "gold"
+  environment  = var.environment
   project_name = var.project_name
-  
-  message_retention_seconds    = var.sqs_message_retention_seconds
-  visibility_timeout_seconds   = var.sqs_visibility_timeout_seconds
+
+  versioning_enabled = var.s3_versioning_enabled
+  enable_logging     = var.enable_logging
 }
 
-module "rds_database" {
-  source = "./modules/rds"
+# # ==================== SNS TOPICS ====================
+module "sns_topics_bronze" {
+  source = "./modules/sns"
 
-  environment           = var.environment
-  project_name          = var.project_name
-  rds_engine            = var.rds_engine
-  rds_instance_class    = var.rds_instance_class
-  rds_database_name     = var.rds_database_name
-  rds_username          = var.rds_username
-  rds_password          = var.rds_password
-  rds_allocated_storage = var.rds_allocated_storage
+  environment    = var.environment
+  project_name   = var.project_name
+  layer          = "bronze"
+  src_account    = var.src_account
+  src_bucket_arn = module.s3_buckets_bronze.bucket_arn
 }
 
-module "security_groups" {
-  source = "./modules/security"
+module "sns_topics_silver" {
+  source = "./modules/sns"
 
-  environment = var.environment
-  project_name = var.project_name
-  
-  # VPC configuration will be passed from environment
+  environment    = var.environment
+  project_name   = var.project_name
+  layer          = "silver"
+  src_account    = var.src_account
+  src_bucket_arn = module.s3_buckets_silver.bucket_arn
+}
+
+module "sns_topics_gold" {
+  source = "./modules/sns"
+
+  environment    = var.environment
+  project_name   = var.project_name
+  layer          = "gold"
+  src_account    = var.src_account
+  src_bucket_arn = module.s3_buckets_gold.bucket_arn
 }
 
 # ==================== S3 EVENT NOTIFICATIONS → SNS ====================
 
 # S3 Event Notifications publish to SNS topics
 resource "aws_s3_bucket_notification" "bronze_notification" {
-  bucket = module.s3_buckets.bronze_bucket_id
-
+  bucket = module.s3_buckets_bronze.bucket_id
   topic {
-    topic_arn     = module.sns_topics.bronze_topic_arn
+    topic_arn     = module.sns_topics_bronze.topic_arn
     events        = ["s3:ObjectCreated:*"]
-    filter_prefix = ""
+    filter_prefix = "data/"
   }
 
-  depends_on = [aws_sns_topic_policy.bronze_s3_publish]
+  #   depends_on = [aws_sns_topic_policy.bronze_s3_publish]
 }
 
 resource "aws_s3_bucket_notification" "silver_notification" {
-  bucket = module.s3_buckets.silver_bucket_id
+  bucket = module.s3_buckets_silver.bucket_id
 
   topic {
-    topic_arn     = module.sns_topics.silver_topic_arn
+    topic_arn     = module.sns_topics_silver.topic_arn
     events        = ["s3:ObjectCreated:*"]
     filter_prefix = ""
   }
 
-  depends_on = [aws_sns_topic_policy.silver_s3_publish]
+  #   depends_on = [aws_sns_topic_policy.silver_s3_publish]
 }
 
 resource "aws_s3_bucket_notification" "gold_notification" {
-  bucket = module.s3_buckets.gold_bucket_id
+  bucket = module.s3_buckets_gold.bucket_id
 
   topic {
-    topic_arn     = module.sns_topics.gold_topic_arn
+    topic_arn     = module.sns_topics_gold.topic_arn
     events        = ["s3:ObjectCreated:*"]
     filter_prefix = ""
   }
 
-  depends_on = [aws_sns_topic_policy.gold_s3_publish]
+  #   depends_on = [aws_sns_topic_policy.gold_s3_publish]
 }
 
-# ==================== SNS TOPIC POLICIES FOR S3 PUBLISHING ====================
 
-resource "aws_sns_topic_policy" "bronze_s3_publish" {
-  arn    = module.sns_topics.bronze_topic_arn
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "s3.amazonaws.com"
-        }
-        Action   = "SNS:Publish"
-        Resource = module.sns_topics.bronze_topic_arn
-        Condition = {
-          ArnEquals = {
-            "aws:SourceArn" = module.s3_buckets.bronze_bucket_arn
-          }
-        }
-      }
-    ]
-  })
+# ==================== SQS QUEUES ====================
+
+module "sqs_queue_bronze" {
+  source = "./modules/sqs"
+
+  environment  = var.environment
+  project_name = var.project_name
+  layer        = "bronze"
+
+  message_retention_seconds  = var.sqs_message_retention_seconds
+  visibility_timeout_seconds = var.sqs_visibility_timeout_seconds
 }
 
-resource "aws_sns_topic_policy" "silver_s3_publish" {
-  arn    = module.sns_topics.silver_topic_arn
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "s3.amazonaws.com"
-        }
-        Action   = "SNS:Publish"
-        Resource = module.sns_topics.silver_topic_arn
-        Condition = {
-          ArnEquals = {
-            "aws:SourceArn" = module.s3_buckets.silver_bucket_arn
-          }
-        }
-      }
-    ]
-  })
+module "sqs_queue_silver" {
+  source = "./modules/sqs"
+
+  environment  = var.environment
+  project_name = var.project_name
+  layer        = "silver"
+
+  message_retention_seconds  = var.sqs_message_retention_seconds
+  visibility_timeout_seconds = var.sqs_visibility_timeout_seconds
 }
 
-resource "aws_sns_topic_policy" "gold_s3_publish" {
-  arn    = module.sns_topics.gold_topic_arn
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "s3.amazonaws.com"
-        }
-        Action   = "SNS:Publish"
-        Resource = module.sns_topics.gold_topic_arn
-        Condition = {
-          ArnEquals = {
-            "aws:SourceArn" = module.s3_buckets.gold_bucket_arn
-          }
-        }
-      }
-    ]
-  })
+module "sqs_queue_gold" {
+  source = "./modules/sqs"
+
+  environment  = var.environment
+  project_name = var.project_name
+  layer        = "gold"
+
+  message_retention_seconds  = var.sqs_message_retention_seconds
+  visibility_timeout_seconds = var.sqs_visibility_timeout_seconds
 }
 
 # ==================== SNS → SQS SUBSCRIPTIONS ====================
 
 # Subscribe Bronze SQS to Bronze SNS topic
 resource "aws_sns_topic_subscription" "bronze_sqs" {
-  topic_arn            = module.sns_topics.bronze_topic_arn
+  topic_arn            = module.sns_topics_bronze.topic_arn
   protocol             = "sqs"
-  endpoint             = module.sqs_queues.bronze_sqs_arn
+  endpoint             = module.sqs_queue_bronze.sqs_arn
   raw_message_delivery = true
 }
 
 # Subscribe Silver SQS to Silver SNS topic
 resource "aws_sns_topic_subscription" "silver_sqs" {
-  topic_arn            = module.sns_topics.silver_topic_arn
+  topic_arn            = module.sns_topics_silver.topic_arn
   protocol             = "sqs"
-  endpoint             = module.sqs_queues.silver_sqs_arn
+  endpoint             = module.sqs_queue_silver.sqs_arn
   raw_message_delivery = true
 }
 
 # Subscribe Gold SQS to Gold SNS topic
 resource "aws_sns_topic_subscription" "gold_sqs" {
-  topic_arn            = module.sns_topics.gold_topic_arn
+  topic_arn            = module.sns_topics_gold.topic_arn
   protocol             = "sqs"
-  endpoint             = module.sqs_queues.gold_sqs_arn
+  endpoint             = module.sqs_queue_gold.sqs_arn
   raw_message_delivery = true
 }
 
-# ==================== SQS QUEUE POLICIES FOR SNS PUBLISHING ====================
+# # ==================== SQS QUEUE POLICIES FOR SNS PUBLISHING ====================
 
-# SQS Queue Policies to allow SNS SendMessage
+# # SQS Queue Policies to allow SNS SendMessage
 resource "aws_sqs_queue_policy" "bronze_sqs_policy" {
-  queue_url = module.sqs_queues.bronze_sqs_url
+  queue_url = module.sqs_queue_bronze.sqs_url
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -196,10 +178,10 @@ resource "aws_sqs_queue_policy" "bronze_sqs_policy" {
           Service = "sns.amazonaws.com"
         }
         Action   = "sqs:SendMessage"
-        Resource = module.sqs_queues.bronze_sqs_arn
+        Resource = module.sqs_queue_bronze.sqs_arn
         Condition = {
           ArnEquals = {
-            "aws:SourceArn" = module.sns_topics.bronze_topic_arn
+            "aws:SourceArn" = module.sns_topics_bronze.topic_arn
           }
         }
       }
@@ -208,7 +190,7 @@ resource "aws_sqs_queue_policy" "bronze_sqs_policy" {
 }
 
 resource "aws_sqs_queue_policy" "silver_sqs_policy" {
-  queue_url = module.sqs_queues.silver_sqs_url
+  queue_url = module.sqs_queue_silver.sqs_url
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -219,10 +201,10 @@ resource "aws_sqs_queue_policy" "silver_sqs_policy" {
           Service = "sns.amazonaws.com"
         }
         Action   = "sqs:SendMessage"
-        Resource = module.sqs_queues.silver_sqs_arn
+        Resource = module.sqs_queue_silver.sqs_arn
         Condition = {
           ArnEquals = {
-            "aws:SourceArn" = module.sns_topics.silver_topic_arn
+            "aws:SourceArn" = module.sns_topics_silver.topic_arn
           }
         }
       }
@@ -231,7 +213,7 @@ resource "aws_sqs_queue_policy" "silver_sqs_policy" {
 }
 
 resource "aws_sqs_queue_policy" "gold_sqs_policy" {
-  queue_url = module.sqs_queues.gold_sqs_url
+  queue_url = module.sqs_queue_gold.sqs_url
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -242,13 +224,15 @@ resource "aws_sqs_queue_policy" "gold_sqs_policy" {
           Service = "sns.amazonaws.com"
         }
         Action   = "sqs:SendMessage"
-        Resource = module.sqs_queues.gold_sqs_arn
+        Resource = module.sqs_queue_gold.sqs_arn
         Condition = {
           ArnEquals = {
-            "aws:SourceArn" = module.sns_topics.gold_topic_arn
+            "aws:SourceArn" = module.sns_topics_gold.topic_arn
           }
         }
       }
     ]
   })
 }
+
+
