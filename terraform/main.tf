@@ -74,7 +74,7 @@ resource "aws_s3_bucket_notification" "bronze_notification" {
     filter_prefix = "data/"
   }
 
-  #   depends_on = [aws_sns_topic_policy.bronze_s3_publish]
+    depends_on = [module.sns_topics_bronze]
 }
 
 resource "aws_s3_bucket_notification" "silver_notification" {
@@ -86,7 +86,7 @@ resource "aws_s3_bucket_notification" "silver_notification" {
     filter_prefix = ""
   }
 
-  #   depends_on = [aws_sns_topic_policy.silver_s3_publish]
+    depends_on = [module.sns_topics_silver]
 }
 
 resource "aws_s3_bucket_notification" "gold_notification" {
@@ -98,7 +98,7 @@ resource "aws_s3_bucket_notification" "gold_notification" {
     filter_prefix = ""
   }
 
-  #   depends_on = [aws_sns_topic_policy.gold_s3_publish]
+    depends_on = [module.sns_topics_gold]
 }
 
 
