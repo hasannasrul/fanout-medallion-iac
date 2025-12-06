@@ -236,3 +236,88 @@ resource "aws_sqs_queue_policy" "gold_sqs_policy" {
 }
 
 
+# ==================== LAMBDA FUNCTIONS ====================
+module "lambda_bronze" {
+  source = "./modules/lambda"
+
+  project_name     = var.project_name
+  environment      = var.environment
+  layer            = "bronze"
+  s3_bucket        = "fanout-medallion-lambda-dev-148670371671" 
+  s3_key           = "bronze-lambda/lambda-v4.zip"
+  lambda_handler   = "app.handler"
+
+  env_vars = {
+    SOURCE_LAYER = "bronze"
+    TARGET_BUCKET = module.s3_buckets_silver.bucket_id
+  }
+}
+
+# =================== LAMBDA IAM ====================
+resource "aws_iam_role_policy" "lambda_sqs_bronze" {
+  role = module.lambda_bronze.role_name
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes",
+        "sqs:ChangeMessageVisibility"
+      ]
+      Resource = module.sqs_queue_bronze.sqs_arn
+    }]
+  })
+}
+
+# LAMBDA IAM S3 COPY POLICY
+resource "aws_iam_policy" "lambda_bronze_s3_rw" {
+  name = "${var.project_name}-${var.environment}-bronze-s3-rw"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+
+      # Read from Bronze bucket
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = "${module.s3_buckets_bronze.bucket_arn}/*"
+      },
+
+      # Write into Silver bucket
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject"
+        ]
+        Resource = "${module.s3_buckets_silver.bucket_arn}/*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_s3_rw_bronze" {
+  role       = module.lambda_bronze.role_name
+  policy_arn = aws_iam_policy.lambda_bronze_s3_rw.arn
+}
+
+
+# =================== lambda event source mapping ====================
+resource "aws_lambda_event_source_mapping" "bronze_mapping" {
+  event_source_arn = module.sqs_queue_bronze.sqs_arn
+  function_name    = module.lambda_bronze.lambda_function_arn
+  batch_size       = 1
+  enabled          = true
+
+  depends_on = [
+    aws_iam_role_policy.lambda_sqs_bronze,
+    module.sqs_queue_bronze
+  ]
+}
+
+
