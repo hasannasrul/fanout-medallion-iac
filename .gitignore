@@ -49,3 +49,4 @@ terraform.rc
 terraform.tfvars
 !terraform.tfvars.example
 outputs.json
+README copy.md
