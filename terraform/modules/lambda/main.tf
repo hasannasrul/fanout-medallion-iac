@@ -28,7 +28,7 @@ resource "aws_lambda_function" "this" {
   s3_bucket = var.s3_bucket
   s3_key    = var.s3_key
 
-  source_code_hash = data.aws_s3_object.lambda_hash.etag
+  source_code_hash = data.aws_s3_object.lambda_hash.version_id
 
   timeout     = var.lambda_timeout
   memory_size = var.lambda_memory_size

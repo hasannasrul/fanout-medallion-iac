@@ -13,3 +13,7 @@ output "lambda_role_arn" {
 output "role_name" {
   value = aws_iam_role.lambda_role.name
 }
+
+output "lambda_zip_version" {
+  value = data.aws_s3_object.lambda_hash.version_id
+}

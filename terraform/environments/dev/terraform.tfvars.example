@@ -5,14 +5,6 @@ environment                = "dev"
 aws_region                 = "us-east-1"
 project_name               = "fanout-medallion"
 
-# RDS Configuration (Free Tier: db.t3.micro, PostgreSQL 15, 20GB storage)
-rds_engine                 = "postgres"      # or "mysql"
-rds_instance_class         = "db.t3.micro"   # Free tier eligible
-rds_database_name          = "analytics"
-rds_username               = "admin"
-rds_password               = "YourSecurePassword123!"  # CHANGE THIS!
-rds_allocated_storage      = 20              # Free tier: 20GB
-
 # S3 & SQS Configuration
 s3_versioning_enabled      = true
 enable_logging             = true

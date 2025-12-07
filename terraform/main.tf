@@ -244,7 +244,7 @@ module "lambda_bronze" {
   environment      = var.environment
   layer            = "bronze"
   s3_bucket        = "fanout-medallion-lambda-dev-148670371671" 
-  s3_key           = "bronze-lambda/lambda-v4.zip"
+  s3_key           = "bronze-lambda/lambda.zip"
   lambda_handler   = "app.handler"
 
   env_vars = {
@@ -254,57 +254,52 @@ module "lambda_bronze" {
 }
 
 # =================== LAMBDA IAM ====================
-resource "aws_iam_role_policy" "lambda_sqs_bronze" {
-  role = module.lambda_bronze.role_name
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{
-      Effect = "Allow"
-      Action = [
-        "sqs:ReceiveMessage",
-        "sqs:DeleteMessage",
-        "sqs:GetQueueAttributes",
-        "sqs:ChangeMessageVisibility"
-      ]
-      Resource = module.sqs_queue_bronze.sqs_arn
-    }]
-  })
-}
-
-# LAMBDA IAM S3 COPY POLICY
-resource "aws_iam_policy" "lambda_bronze_s3_rw" {
-  name = "${var.project_name}-${var.environment}-bronze-s3-rw"
+resource "aws_iam_policy" "lambda_bronze_access" {
+  name = "${var.project_name}-${var.environment}-bronze-combined-access"
 
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
 
+      # SQS Access
+      {
+        Effect = "Allow",
+        Action = [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:ChangeMessageVisibility"
+        ],
+        Resource = module.sqs_queue_bronze.sqs_arn
+      },
+
       # Read from Bronze bucket
       {
-        Effect = "Allow"
+        Effect = "Allow",
         Action = [
           "s3:GetObject"
-        ]
+        ],
         Resource = "${module.s3_buckets_bronze.bucket_arn}/*"
       },
 
-      # Write into Silver bucket
+      # Write to Silver bucket
       {
-        Effect = "Allow"
+        Effect = "Allow",
         Action = [
           "s3:PutObject"
-        ]
+        ],
         Resource = "${module.s3_buckets_silver.bucket_arn}/*"
       }
     ]
   })
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_s3_rw_bronze" {
+
+resource "aws_iam_role_policy_attachment" "lambda_combined" {
   role       = module.lambda_bronze.role_name
-  policy_arn = aws_iam_policy.lambda_bronze_s3_rw.arn
+  policy_arn = aws_iam_policy.lambda_bronze_access.arn
 }
+
 
 
 # =================== lambda event source mapping ====================
@@ -315,7 +310,7 @@ resource "aws_lambda_event_source_mapping" "bronze_mapping" {
   enabled          = true
 
   depends_on = [
-    aws_iam_role_policy.lambda_sqs_bronze,
+    aws_iam_policy.lambda_bronze_access,
     module.sqs_queue_bronze
   ]
 }

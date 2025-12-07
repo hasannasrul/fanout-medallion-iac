@@ -9,10 +9,4 @@ module "fanout_infrastructure" {
   src_account                    = var.src_account 
   sqs_message_retention_seconds  = var.sqs_message_retention_seconds
   sqs_visibility_timeout_seconds = var.sqs_visibility_timeout_seconds
-  # rds_allocated_storage          = var.rds_allocated_storage
-  # rds_engine                     = var.rds_engine
-  # rds_instance_class             = var.rds_instance_class
-  # rds_database_name              = var.rds_database_name
-  # rds_username                   = var.rds_username
-  # rds_password                   = var.rds_password
 }
